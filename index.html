@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Důležitá otázka 💘</title>
+<style>
+  :root { --pink:#ff4d79; --dark:#c9184a; --bg1:#ffe0ea; --bg2:#ffb3c7; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    background: linear-gradient(135deg,var(--bg1),var(--bg2)); color:#5a0a25; overflow:hidden;
+  }
+  .card {
+    background:rgba(255,255,255,.88); border-radius:28px; padding:32px 26px; width:min(560px,92vw);
+    text-align:center; box-shadow:0 20px 60px rgba(201,24,74,.3); position:relative; z-index:2;
+    min-height:380px; display:flex; flex-direction:column; justify-content:center;
+  }
+  h1 { font-size:clamp(1.6rem,6vw,2.3rem); margin:.2em 0 .4em; color:var(--dark); }
+  p.sub { margin:0 0 1.2em; font-size:1.05rem; }
+  .emoji { font-size:4rem; animation:beat 1s infinite; display:block; }
+  @keyframes beat { 0%,100%{transform:scale(1)} 50%{transform:scale(1.18)} }
+  .btns { display:flex; gap:16px; justify-content:center; align-items:center; flex-wrap:wrap; min-height:60px; }
+  button {
+    font:inherit; font-weight:bold; font-size:1.1rem; border:none; cursor:pointer; border-radius:50px;
+    padding:14px 28px; transition:transform .15s, box-shadow .15s;
+  }
+  .yes { background:var(--pink); color:#fff; box-shadow:0 6px 18px rgba(255,77,121,.5); }
+  .yes:hover { transform:scale(1.08); }
+  .no { background:#e9e1e4; color:#555; }
+  .no.run { position:fixed; z-index:10; transition:left .25s ease-out, top .25s ease-out; }
+  .opts { display:grid; gap:10px; margin:0 auto; width:100%; }
+  .opt { background:#fff; border:2px solid var(--pink); color:var(--dark); font-size:1rem; padding:12px 16px; }
+  .opt:hover { background:var(--pink); color:#fff; transform:scale(1.03); }
+  .progress { height:8px; background:#ffd1de; border-radius:8px; margin-bottom:18px; overflow:hidden; }
+  .progress i { display:block; height:100%; background:var(--pink); width:0; transition:width .4s; }
+  .taunt { min-height:1.5em; color:var(--dark); font-style:italic; margin-top:14px; }
+  .summary { text-align:left; background:#fff; border-radius:16px; padding:14px 20px; margin:10px 0 16px; line-height:1.8; }
+  .hearts { position:fixed; inset:0; pointer-events:none; z-index:1; }
+  .heart { position:absolute; bottom:-40px; animation:rise linear forwards; }
+  @keyframes rise { to { transform:translateY(-115vh) rotate(40deg); opacity:.2; } }
+  .small { font-size:.8rem; opacity:.7; margin-top:14px; }
+</style>
+</head>
+<body>
+<div class="hearts" id="hearts"></div>
+<main class="card" id="card"></main>
+
+<script>
+const card = document.getElementById('card');
+
+/* ---------- Otázky ---------- */
+const questions = [
+  { q:"Kam tě vezmu na večeři?", sub:"Rozpočet je neomezený (ne, není, ale ať mám dobrý pocit).",
+    opts:["Do italské restaurace 🍝","Na sushi 🍣","Na steak 🥩","Domů, uvařím já 👨‍🍳 (rizikové)","Kamkoliv, hlavně ať nemusím vařit 🙌"] },
+  { q:"A co si dáš k pití?", sub:"Řidič je jen jeden a ten nejsem já. Možná.",
+    opts:["Víno 🍷","Prosecco 🥂","Koktejl s deštníčkem 🍹","Vodu, jsem fitness 💦"] },
+  { q:"Jak moc se budu muset vyfintit?", sub:"Odpovídej upřímně, žehlička už je připravená.",
+    opts:["Oblek a kravata 🤵","Čistá košile stačí 👔","Tepláky, ale ty hezčí 😎","Ty rozhodneš a já poslechnu 🫡"] },
+  { q:"Jaký dárek by tě potěšil?", sub:"Tady se vyplatí nenapsat jen „nic“. Víme obě strany, že to není pravda.",
+    opts:["Květiny 💐","Čokoláda 🍫","Šperk 💎","Masáž 💆‍♀️ (a já budu masér)","Nový krém, o kterém jsi mluvila 3 měsíce 🧴"] },
+  { q:"A co po večeři?", sub:"Poslední otázka, slibuju. Skoro.",
+    opts:["Procházka ve dvou 🌙","Film a přikrývka 🎬","Zmrzlina i v únoru 🍦","Domů a hned spát 😴 (taky legitimní)"] }
+];
+const answers = [];
+let step = 0;
+
+/* ---------- Úvodní otázka ---------- */
+const taunts = [
+  "Hmm, to tlačítko asi klouže… 🤔",
+  "Ale no tak, zkus to znovu 😏",
+  "Tahle možnost je dnes bohužel vyprodaná.",
+  "Ty to tlačítko nedostaneš, miláčku 😎",
+  "Vážně? Já mám půlnoc a celý večer.",
+  "Zkus raději tamto druhé, vypadá lépe 👉",
+  "Nekonečný pokus. Já se nevzdávám!",
+  "Tlačítko Ne má dnes volno. Odborářsky.",
+  "Víš, že Ano je mnohem větší? 👀",
+  "Tak to už je trochu trapné, ne? 😂"
+];
+let noCount = 0, yesScale = 1;
+
+function showIntro() {
+  card.innerHTML = `
+    <span class="emoji">💘</span>
+    <h1>Drahá manželko,<br>budeš moje Valentýnka?</h1>
+    <p class="sub">Na svatého Valentýna (14. února), pochopitelně. Rozmysli si to… ale ne moc dlouho.</p>
+    <div class="btns">
+      <button class="yes" id="yes">Ano 💖</button>
+      <button class="no" id="no">Ne</button>
+    </div>
+    <div class="taunt" id="taunt"></div>`;
+  document.getElementById('yes').onclick = () => { confetti(); showQuestion(); };
+  const no = document.getElementById('no');
+  ['mouseenter','touchstart','click'].forEach(ev =>
+    no.addEventListener(ev, e => { e.preventDefault(); dodge(no); }, {passive:false}));
+}
+
+function dodge(no) {
+  noCount++;
+  no.classList.add('run');
+  const pad = 10, w = no.offsetWidth, h = no.offsetHeight;
+  let x, y, tries = 0;
+  const cr = card.getBoundingClientRect();
+  const yes = document.getElementById('yes').getBoundingClientRect();
+  do { // ať nepřistane přímo na "Ano"
+    x = pad + Math.random() * (innerWidth - w - 2*pad);
+    y = pad + Math.random() * (innerHeight - h - 2*pad);
+    tries++;
+  } while (tries < 30 && x < yes.right+10 && x+w > yes.left-10 && y < yes.bottom+10 && y+h > yes.top-10);
+  no.style.left = x + 'px';
+  no.style.top = y + 'px';
+  no.style.fontSize = Math.max(.55, 1.1 - noCount*.04) + 'rem';
+  yesScale = Math.min(2.2, 1 + noCount*.1);
+  document.getElementById('yes').style.transform = `scale(${yesScale})`;
+  document.getElementById('taunt').textContent = taunts[(noCount-1) % taunts.length];
+}
+
+/* ---------- Otázky po "Ano" ---------- */
+function showQuestion() {
+  if (step >= questions.length) return showFinal();
+  const q = questions[step];
+  card.innerHTML = `
+    <div class="progress"><i style="width:${(step/questions.length)*100}%"></i></div>
+    <h1>${q.q}</h1>
+    <p class="sub">${q.sub}</p>
+    <div class="opts">${q.opts.map((o,i)=>`<button class="opt" data-i="${i}">${o}</button>`).join('')}</div>
+    <div class="small">Otázka ${step+1} z ${questions.length}</div>`;
+  card.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+    answers.push(q.opts[b.dataset.i]); step++; burst(b); showQuestion();
+  });
+}
+
+function showFinal() {
+  card.innerHTML = `
+    <span class="emoji">🥰</span>
+    <h1>Domluveno!</h1>
+    <p class="sub">Oficiálně jsi moje Valentýnka. Tady je tvůj závazný plán:</p>
+    <div class="summary">
+      🍽️ Večeře: <b>${answers[0]}</b><br>
+      🥂 Pití: <b>${answers[1]}</b><br>
+      👗 Dress code: <b>${answers[2]}</b><br>
+      🎁 Dárek: <b>${answers[3]}</b><br>
+      🌙 Po večeři: <b>${answers[4]}</b>
+    </div>
+    <p class="sub">Tento dokument je právně nezávazný, ale emočně velmi.<br>Miluju tě. ❤️</p>
+    <div class="btns"><button class="yes" id="again">Znovu 🔁</button></div>`;
+  document.getElementById('again').onclick = () => { step=0; answers.length=0; noCount=0; showIntro(); };
+  for (let i=0;i<4;i++) setTimeout(confetti, i*500);
+}
+
+/* ---------- Srdíčka ---------- */
+const heartsEl = document.getElementById('hearts');
+function spawnHeart(emoji, x) {
+  const h = document.createElement('span');
+  h.className = 'heart';
+  h.textContent = emoji || ['💖','💕','💗','❤️','💘','🌹'][Math.floor(Math.random()*6)];
+  h.style.left = (x ?? Math.random()*100) + (x ? 'px' : 'vw');
+  h.style.fontSize = (16 + Math.random()*28) + 'px';
+  h.style.animationDuration = (5 + Math.random()*6) + 's';
+  heartsEl.appendChild(h);
+  setTimeout(() => h.remove(), 11000);
+}
+setInterval(spawnHeart, 700);
+function confetti() { for (let i=0;i<40;i++) setTimeout(spawnHeart, i*30); }
+function burst(el) { const r = el.getBoundingClientRect(); for (let i=0;i<6;i++) spawnHeart('💗', r.left + Math.random()*r.width); }
+
+showIntro();
+</script>
+</body>
+</html>
