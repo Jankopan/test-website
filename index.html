@@ -63,6 +63,26 @@ const questions = [
   { q:"A co po večeři?", sub:"Poslední otázka, slibuju. Skoro.",
     opts:["Procházka ve dvou 🌙","Film a přikrývka 🎬","Zmrzlina i v únoru 🍦","Domů a hned spát 😴 (taky legitimní)"] }
 ];
+/* Ano/Ne otázky: "bad" je špatná odpověď, ta uhýbá */
+const yn = (q, sub, bad, taunts) => ({ yn:true, q, sub, bad, taunts });
+questions.splice(1, 0,
+  yn("Je tvůj manžel nejlepší na světě?", "Pozor, zkouška upřímnosti. Špatná odpověď bude potrestána.", "no",
+     ["Tohle tlačítko je dnes mimo provoz.", "Tak to jsi asi nemyslela vážně 😏", "Ne? Zkus to chytit, když to dokážeš."]),
+  yn("Budeš se na večeři tvářit překvapeně, i když to už víš?", "Herecký výkon je důležitá součást rande.", "no",
+     ["Herečka se bojí kamer 🎬", "Nene, takhle ne!", "Oscar ti už letí z ruky."]));
+questions.splice(4, 0,
+  yn("Smím si dát i dezert?", "Ptám se jen z pojistky. Vím, že na dezert máš vždycky místo.", "no",
+     ["Dezert není na výběr, dezert je povinnost 🍰", "Tohle tlačítko drží dietu, ne ty.", "Cukr rozhoduje, ne ty."]),
+  yn("Mám ti nést kabelku?", "Rytířská galantnost versus pohodlnost.", "yes",
+     ["Tohle tlačítko se stydí 😳", "Já ji nést nechci!", "Kabelka je tvoje, ne moje 👜"]));
+questions.splice(7, 0,
+  yn("Zvládneš dojíst všechno na talíři, i když budeš plná?", "Jídlo se nevyhazuje.", "no",
+     ["Plýtvání jídlem se netoleruje 🚫", "Nene, tohle ne, drahá.", "Talíř se dojídá, to je zákon."]),
+  yn("Je pravda, že mě miluješ víc než pizzu?", "Čestná odpověď. Pizza poslouchá.", "no",
+     ["Pizza na tebe čeká v ledničce 🍕", "Přemýšlej o tom ještě jednou…", "Tohle tlačítko si to rozmyslelo."]),
+  yn("Řekneš mi, že jsem dnes krásně voněl, i když jsem si zapomněl dát deodorant?", "Taktní odpověď prosím.", "no",
+     ["Tohle už ani já nechci číst 😅", "Tlačítko cítí, co ty.", "Kdo lže, uteče."]));
+
 const answers = [];
 let step = 0;
 
@@ -94,16 +114,16 @@ function showIntro() {
   document.getElementById('yes').onclick = () => { confetti(); showQuestion(); };
   const no = document.getElementById('no');
   ['mouseenter','touchstart','click'].forEach(ev =>
-    no.addEventListener(ev, e => { e.preventDefault(); dodge(no); }, {passive:false}));
+    no.addEventListener(ev, e => { e.preventDefault(); dodge(no, taunts, document.getElementById('yes')); }, {passive:false}));
 }
 
-function dodge(no) {
+function dodge(no, tauntList, yesBtn) {
   noCount++;
   no.classList.add('run');
   const pad = 10, w = no.offsetWidth, h = no.offsetHeight;
   let x, y, tries = 0;
   const cr = card.getBoundingClientRect();
-  const yes = document.getElementById('yes').getBoundingClientRect();
+  const yes = yesBtn.getBoundingClientRect();
   do { // ať nepřistane přímo na "Ano"
     x = pad + Math.random() * (innerWidth - w - 2*pad);
     y = pad + Math.random() * (innerHeight - h - 2*pad);
@@ -113,14 +133,15 @@ function dodge(no) {
   no.style.top = y + 'px';
   no.style.fontSize = Math.max(.55, 1.1 - noCount*.04) + 'rem';
   yesScale = Math.min(2.2, 1 + noCount*.1);
-  document.getElementById('yes').style.transform = `scale(${yesScale})`;
-  document.getElementById('taunt').textContent = taunts[(noCount-1) % taunts.length];
+  yesBtn.style.transform = `scale(${yesScale})`;
+  document.getElementById('taunt').textContent = tauntList[(noCount-1) % tauntList.length];
 }
 
 /* ---------- Otázky po "Ano" ---------- */
 function showQuestion() {
   if (step >= questions.length) return showFinal();
   const q = questions[step];
+  if (q.yn) return showYN(q);
   card.innerHTML = `
     <div class="progress"><i style="width:${(step/questions.length)*100}%"></i></div>
     <h1>${q.q}</h1>
@@ -130,6 +151,27 @@ function showQuestion() {
   card.querySelectorAll('.opt').forEach(b => b.onclick = () => {
     answers.push(q.opts[b.dataset.i]); step++; burst(b); showQuestion();
   });
+}
+
+function showYN(q) {
+  noCount = 0;
+  const badBtn = q.bad === 'no' ? 'no' : 'yes';
+  card.innerHTML = `
+    <div class="progress"><i style="width:${(step/questions.length)*100}%"></i></div>
+    <h1>${q.q}</h1>
+    <p class="sub">${q.sub}</p>
+    <div class="btns">
+      <button class="yes" id="a-yes">Ano 💖</button>
+      <button class="no" id="a-no">Ne</button>
+    </div>
+    <div class="taunt" id="taunt"></div>
+    <div class="small">Otázka ${step+1} z ${questions.length}</div>`;
+  const yesB = document.getElementById('a-yes'), noB = document.getElementById('a-no');
+  const bad = badBtn === 'no' ? noB : yesB, good = badBtn === 'no' ? yesB : noB;
+  if (bad === yesB) { yesB.className = 'no'; noB.className = 'yes'; } // ať je dobrá odpověď výrazná
+  ['mouseenter','touchstart','click'].forEach(ev =>
+    bad.addEventListener(ev, e => { e.preventDefault(); dodge(bad, q.taunts, good); }, {passive:false}));
+  good.onclick = () => { burst(good); step++; showQuestion(); };
 }
 
 function showFinal() {
